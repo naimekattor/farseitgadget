@@ -1,103 +1,221 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import Link from "next/link";
 import Image from "next/image";
+import { IoIosStar, IoHeartDislike } from "react-icons/io";
+import { FaRegHeart } from "react-icons/fa";
 
-export default function Home() {
+
+const CategoryPage = () => {
+  const { slug } = useParams();
+  const [products, setProducts] = useState([]);
+  const [filteredProducts, setFilteredProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const[category,setCategory]=useState();
+  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [sortOrder, setSortOrder] = useState("");
+
+
+ 
+
+  useEffect(() => {
+    if (!slug) return;
+
+    const fetchProducts = async () => {
+      try {
+        const res = await fetch(
+          'https://testingbackend.farseit.com/Product/search'
+        )
+        const data= await res.json();
+        setProducts(data);
+        setFilteredProducts(data);
+        console.log(data);
+        
+      } catch (error) {
+        console.error("Error fetching products:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProducts();
+  }, );
+
+  useEffect(() => {
+
+    const fetchCategory = async () => {
+      try {
+        const response = await fetch(
+          'https://testingbackend.farseit.com/Category/search'
+        )
+        const categoryName= await response.json();
+        setCategory(categoryName);
+        
+        console.log(categoryName);
+        
+      } catch (error) {
+        console.error("Error fetching category:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCategory();
+  },[] );
+
+
+  const handleSortChange = (order) => {
+    setSortOrder(order);
+  
+    let sortedProducts = [...filteredProducts];
+  
+    if (order === "lowToHigh") {
+      sortedProducts.sort((a, b) => a.price - b.price);
+    } else if (order === "highToLow") {
+      sortedProducts.sort((a, b) => b.price - a.price);
+    }
+  
+    setFilteredProducts(sortedProducts);
+  };
+
+
+  const handleCategoryChange = async (categoryId, checked) => {
+    let updatedCategories;
+    
+    if (checked) {
+      updatedCategories = [...selectedCategories, categoryId];
+    } else {
+      updatedCategories = selectedCategories.filter(id => id !== categoryId);
+    }
+  
+    setSelectedCategories(updatedCategories);
+  
+    if (updatedCategories.length === 0) {
+      setFilteredProducts(products); 
+      return;
+    }
+  
+    try {
+      
+      const fetchPromises = updatedCategories.map(categoryId =>
+        fetch(`https://testingbackend.farseit.com/Product/searchByCategory/${categoryId}`)
+          .then(res => res.json())
+      );
+  
+      const results = await Promise.all(fetchPromises);
+      const mergedProducts = results.flat(); 
+      setFilteredProducts(mergedProducts);
+  
+    } catch (error) {
+      console.error("Error fetching category products:", error);
+    }
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              app/page.js
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+    <div className="container mx-auto p-4 md:p-8 flex flex-col md:flex-row gap-8">
+      {/* Sidebar for filtering */}
+      <div className="w-full md:w-64 p-4 bg-gray-100 border rounded-md shadow-md overflow-y-auto h-screen">
+        <h3 className="text-lg font-semibold mb-4">Sort by</h3>
+        <div className="mb-6">
+        <label className="block text-sm mb-2">
+    <input
+      type="radio"
+      name="sort"
+      value="lowToHigh"
+      checked={sortOrder === "lowToHigh"}
+      onChange={() => handleSortChange("lowToHigh")}
+      className="mr-2"
+    />
+    Price - Low to High
+  </label>
+  <label className="block text-sm mb-2">
+    <input
+      type="radio"
+      name="sort"
+      value="highToLow"
+      checked={sortOrder === "highToLow"}
+      onChange={() => handleSortChange("highToLow")}
+      className="mr-2"
+    />
+    Price - High to Low
+  </label>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+        <h3 className="text-lg font-semibold mb-4">Category</h3>
+        <div className="mb-6">
+          {category && category.map((category) => (
+            <label key={category.Id} className="block text-sm mb-2">
+              <input
+                type="checkbox"
+                name="category"
+                value={category.name}
+                checked={selectedCategories.includes(category.Id)}
+                onChange={(e) => handleCategoryChange(category.Id, e.target.checked)}
+                className="mr-2"
+              />
+              {category.name}
+            </label>
+          ))}
+        </div>
+      </div>
+      <div className="flex-1 p-6">
+        
+        <h3 className="text-xl font-semibold mb-4 text-center">
+          Search Results: {filteredProducts.length} {filteredProducts.length === 1 ? "product" : "products"}
+        </h3>
+        {filteredProducts.length === 0 ? (
+          <p className="text-center text-gray-600">
+            No products found within the selected price range.
+          </p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            {filteredProducts.map((product,index) => (
+              <div
+                key={index}
+                className="relative border flex flex-col justify-between h-full bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 group"
+              >
+                {product.offer && (
+                  <div className="absolute top-0 left-0 z-40 w-16 h-16">
+                    <div className="absolute transform -rotate-45 bg-[#192a56] text-center text-white font-semibold py-1 left-[-55px] top-[20px] w-[170px] text-xs">
+                      {product.offer}% OFF
+                    </div>
+                  </div>
+                )}
+
+                <div className="z-30">
+                  <div className="bg-slate-200 h-48 p-4  flex justify-center items-center">
+                    <Link href={`/products/product-info/${product.id}`}>
+                    {product.image.map((imageUrl, index) => (
+        <Image key={index} src={imageUrl || "/images.png"} 
+        width={300} 
+        height={200} 
+        className="object-cover w-full aspect-[4/5] group-hover:scale-105 transition-all duration-300" alt={`product-image-${index}`} />
+      ))}
+                    </Link>
+                  </div>
+
+                  <div className="p-4 space-y-2">
+                  <h2 className="font-medium text-base md:text-lg text-ellipsis line-clamp-1 text-black">{product.name} </h2>
+                  <div className="flex gap-2"><p className="text-[#192A56] text-sm font-bold">{product.price} TK</p></div>
+                    
+                    
+                  </div>
+
+                  <div className="flex justify-center items-center p-4 gap-4 mt-2">
+                  <button className="text-sm bg-[#192A56] hover:bg-[#16a085] text-white px-3 py-0.5 rounded-sm">Add to Cart</button>
+                    
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
-}
+};
+
+export default CategoryPage;
