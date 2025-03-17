@@ -4,12 +4,11 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
-import { IoIosStar, IoHeartDislike } from "react-icons/io";
-import { FaRegHeart } from "react-icons/fa";
+
 
 
 const CategoryPage = () => {
-  const { slug } = useParams();
+  
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
