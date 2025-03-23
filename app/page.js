@@ -1,37 +1,32 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 
-
-
 const CategoryPage = () => {
-  
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const[category,setCategory]=useState();
+  const [category, setCategory] = useState([]);
   const [selectedCategories, setSelectedCategories] = useState([]);
   const [sortOrder, setSortOrder] = useState("");
-
-
- 
+  const defaultCategoryId = 1;
 
   useEffect(() => {
-    if (!slug) return;
-
     const fetchProducts = async () => {
       try {
         const res = await fetch(
-          'https://testingbackend.farseit.com/Product/search'
-        )
-        const data= await res.json();
+          `https://testingbackend.farseit.com/Product/searchByCategory/${defaultCategoryId}`
+        );
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
         setProducts(data);
         setFilteredProducts(data);
+        setSelectedCategories([defaultCategoryId]);
         console.log(data);
-        
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
@@ -40,20 +35,20 @@ const CategoryPage = () => {
     };
 
     fetchProducts();
-  }, );
+  }, []);
 
   useEffect(() => {
-
     const fetchCategory = async () => {
       try {
-        const response = await fetch(
-          'https://testingbackend.farseit.com/Category/search'
-        )
-        const categoryName= await response.json();
-        setCategory(categoryName);
-        
-        console.log(categoryName);
-        
+        const res = await fetch(
+          "https://testingbackend.farseit.com/Category/search"
+        );
+        if (!res.ok) {
+          throw new Error(`HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+        setCategory(data);
+        console.log(data);
       } catch (error) {
         console.error("Error fetching category:", error);
       } finally {
@@ -62,51 +57,54 @@ const CategoryPage = () => {
     };
 
     fetchCategory();
-  },[] );
-
+  }, []);
 
   const handleSortChange = (order) => {
     setSortOrder(order);
-  
+
     let sortedProducts = [...filteredProducts];
-  
+
     if (order === "lowToHigh") {
       sortedProducts.sort((a, b) => a.price - b.price);
     } else if (order === "highToLow") {
       sortedProducts.sort((a, b) => b.price - a.price);
     }
-  
+
     setFilteredProducts(sortedProducts);
   };
 
-
   const handleCategoryChange = async (categoryId, checked) => {
     let updatedCategories;
-    
+
     if (checked) {
       updatedCategories = [...selectedCategories, categoryId];
     } else {
-      updatedCategories = selectedCategories.filter(id => id !== categoryId);
+      updatedCategories = selectedCategories.filter((id) => id !== categoryId);
     }
-  
+
     setSelectedCategories(updatedCategories);
-  
+
     if (updatedCategories.length === 0) {
-      setFilteredProducts(products); 
+      setFilteredProducts(products);
       return;
     }
-  
+
     try {
-      
-      const fetchPromises = updatedCategories.map(categoryId =>
-        fetch(`https://testingbackend.farseit.com/Product/searchByCategory/${categoryId}`)
-          .then(res => res.json())
+      const fetchPromises = updatedCategories.map((categoryId) =>
+        fetch(
+          `https://testingbackend.farseit.com/Product/searchByCategory/${categoryId}`
+        ).then(async (res) => {
+          if (!res.ok) {
+            throw new Error(`HTTP error! status: ${res.status}`);
+          }
+          const text = await res.text();
+          return text ? JSON.parse(text) : [];
+        })
       );
-  
+
       const results = await Promise.all(fetchPromises);
-      const mergedProducts = results.flat(); 
+      const mergedProducts = results.flat();
       setFilteredProducts(mergedProducts);
-  
     } catch (error) {
       console.error("Error fetching category products:", error);
     }
@@ -118,52 +116,53 @@ const CategoryPage = () => {
       <div className="w-full md:w-64 p-4 bg-gray-100 border rounded-md shadow-md overflow-y-auto h-screen">
         <h3 className="text-lg font-semibold mb-4">Sort by</h3>
         <div className="mb-6">
-        <label className="block text-sm mb-2">
-    <input
-      type="radio"
-      name="sort"
-      value="lowToHigh"
-      checked={sortOrder === "lowToHigh"}
-      onChange={() => handleSortChange("lowToHigh")}
-      className="mr-2"
-    />
-    Price - Low to High
-  </label>
-  <label className="block text-sm mb-2">
-    <input
-      type="radio"
-      name="sort"
-      value="highToLow"
-      checked={sortOrder === "highToLow"}
-      onChange={() => handleSortChange("highToLow")}
-      className="mr-2"
-    />
-    Price - High to Low
-  </label>
-
-
+          <label className="block text-sm mb-2">
+            <input
+              type="radio"
+              name="sort"
+              value="lowToHigh"
+              checked={sortOrder === "lowToHigh"}
+              onChange={() => handleSortChange("lowToHigh")}
+              className="mr-2"
+            />
+            Price - Low to High
+          </label>
+          <label className="block text-sm mb-2">
+            <input
+              type="radio"
+              name="sort"
+              value="highToLow"
+              checked={sortOrder === "highToLow"}
+              onChange={() => handleSortChange("highToLow")}
+              className="mr-2"
+            />
+            Price - High to Low
+          </label>
         </div>
         <h3 className="text-lg font-semibold mb-4">Category</h3>
         <div className="mb-6">
-          {category && category.map((category) => (
-            <label key={category.Id} className="block text-sm mb-2">
-              <input
-                type="checkbox"
-                name="category"
-                value={category.name}
-                checked={selectedCategories.includes(category.Id)}
-                onChange={(e) => handleCategoryChange(category.Id, e.target.checked)}
-                className="mr-2"
-              />
-              {category.name}
-            </label>
-          ))}
+          {category &&
+            category.map((category) => (
+              <label key={category.Id} className="block text-sm mb-2">
+                <input
+                  type="checkbox"
+                  name="category"
+                  value={category.name}
+                  checked={selectedCategories.includes(category.Id)}
+                  onChange={(e) =>
+                    handleCategoryChange(category.Id, e.target.checked)
+                  }
+                  className="mr-2"
+                />
+                {category.name}
+              </label>
+            ))}
         </div>
       </div>
       <div className="flex-1 p-6">
-        
         <h3 className="text-xl font-semibold mb-4 text-center">
-          Search Results: {filteredProducts.length} {filteredProducts.length === 1 ? "product" : "products"}
+          Search Results: {filteredProducts.length}{" "}
+          {filteredProducts.length === 1 ? "product" : "products"}
         </h3>
         {filteredProducts.length === 0 ? (
           <p className="text-center text-gray-600">
@@ -171,7 +170,7 @@ const CategoryPage = () => {
           </p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-            {filteredProducts.map((product,index) => (
+            {filteredProducts.map((product, index) => (
               <div
                 key={index}
                 className="relative border flex flex-col justify-between h-full bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 group"
@@ -185,27 +184,40 @@ const CategoryPage = () => {
                 )}
 
                 <div className="z-30">
-                  <div className="bg-slate-200 h-48 p-4  flex justify-center items-center">
-                    <Link href={`/products/product-info/${product.id}`}>
-                    {product.image.map((imageUrl, index) => (
-        <Image key={index} src={imageUrl || "/images.png"} 
-        width={300} 
-        height={200} 
-        className="object-cover w-full aspect-[4/5] group-hover:scale-105 transition-all duration-300" alt={`product-image-${index}`} />
-      ))}
-                    </Link>
+                  <div className="bg-slate-200 h-[300px] p-4 flex justify-center items-center">
+                    {console.log(product.image.map((image) => image))}
+                    <Image
+                      src={
+                        product.image[0]?.startsWith("http")
+                          ? product.image[0]
+                          : `https://farseit.com/Upload/ProductImage/${product.image[0]
+                              .split("/")
+                              .pop()}`
+                      }
+                      width={300}
+                      height={300}
+                      className=" w-auto h-[290px]  group-hover:scale-105 transition-all duration-300"
+                      alt={`product-image-${index}`}
+                      loading={index === 0 ? "eager" : "lazy"}
+                      priority={index === 0}
+                    />
                   </div>
 
                   <div className="p-4 space-y-2">
-                  <h2 className="font-medium text-base md:text-lg text-ellipsis line-clamp-1 text-black">{product.name} </h2>
-                  <div className="flex gap-2"><p className="text-[#192A56] text-sm font-bold">{product.price} TK</p></div>
-                    
-                    
+                    <h2 className="font-medium text-base md:text-lg text-ellipsis line-clamp-1 text-black">
+                      {product.name}{" "}
+                    </h2>
+                    <div className="flex gap-2">
+                      <p className="text-[#192A56] text-sm font-bold">
+                        {product.price} TK
+                      </p>
+                    </div>
                   </div>
 
                   <div className="flex justify-center items-center p-4 gap-4 mt-2">
-                  <button className="text-sm bg-[#192A56] hover:bg-[#16a085] text-white px-3 py-0.5 rounded-sm">Add to Cart</button>
-                    
+                    <button className="text-sm bg-[#192A56] hover:bg-[#16a085] text-white px-3 py-0.5 rounded-sm cursor-pointer">
+                      Add to Cart
+                    </button>
                   </div>
                 </div>
               </div>
