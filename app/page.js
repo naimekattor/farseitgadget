@@ -8,80 +8,62 @@ const CategoryPage = () => {
   const [products, setProducts] = useState([]);
   const [filteredProducts, setFilteredProducts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [category, setCategory] = useState([]);
-  const [selectedCategories, setSelectedCategories] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [selectedCategories, setSelectedCategories] = useState([1]); // Default Category ID
   const [sortOrder, setSortOrder] = useState("");
-  const defaultCategoryId = 1;
 
+  // Fetch Products by Default Category
   useEffect(() => {
     const fetchProducts = async () => {
       try {
         const res = await fetch(
-          `https://testingbackend.farseit.com/Product/searchByCategory/${defaultCategoryId}`
+          `https://testingbackend.farseit.com/Product/searchByCategory/1`
         );
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
         setProducts(data);
         setFilteredProducts(data);
-        setSelectedCategories([defaultCategoryId]);
-        console.log(data);
       } catch (error) {
         console.error("Error fetching products:", error);
       } finally {
         setLoading(false);
       }
     };
-
     fetchProducts();
   }, []);
 
+  // Fetch Categories
   useEffect(() => {
-    const fetchCategory = async () => {
+    const fetchCategories = async () => {
       try {
         const res = await fetch(
           "https://testingbackend.farseit.com/Category/search"
         );
-        if (!res.ok) {
-          throw new Error(`HTTP error! status: ${res.status}`);
-        }
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
         const data = await res.json();
-        setCategory(data);
-        console.log(data);
+        setCategories(data);
       } catch (error) {
-        console.error("Error fetching category:", error);
-      } finally {
-        setLoading(false);
+        console.error("Error fetching categories:", error);
       }
     };
-
-    fetchCategory();
+    fetchCategories();
   }, []);
 
+  // Sort Products
   const handleSortChange = (order) => {
     setSortOrder(order);
-
     let sortedProducts = [...filteredProducts];
-
-    if (order === "lowToHigh") {
-      sortedProducts.sort((a, b) => a.price - b.price);
-    } else if (order === "highToLow") {
-      sortedProducts.sort((a, b) => b.price - a.price);
-    }
-
+    sortedProducts.sort((a, b) =>
+      order === "lowToHigh" ? a.price - b.price : b.price - a.price
+    );
     setFilteredProducts(sortedProducts);
   };
 
+  // Handle Category Filter Change
   const handleCategoryChange = async (categoryId, checked) => {
-    let updatedCategories;
-
-    if (checked) {
-      updatedCategories = [...selectedCategories, categoryId];
-    } else {
-      updatedCategories = selectedCategories.filter((id) => id !== categoryId);
-    }
-
+    const updatedCategories = checked
+      ? [...selectedCategories, categoryId]
+      : selectedCategories.filter((id) => id !== categoryId);
     setSelectedCategories(updatedCategories);
 
     if (updatedCategories.length === 0) {
@@ -90,21 +72,17 @@ const CategoryPage = () => {
     }
 
     try {
-      const fetchPromises = updatedCategories.map((categoryId) =>
+      const fetchPromises = updatedCategories.map((id) =>
         fetch(
-          `https://testingbackend.farseit.com/Product/searchByCategory/${categoryId}`
+          `https://testingbackend.farseit.com/Product/searchByCategory/${id}`
         ).then(async (res) => {
-          if (!res.ok) {
-            throw new Error(`HTTP error! status: ${res.status}`);
-          }
+          if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
           const text = await res.text();
           return text ? JSON.parse(text) : [];
         })
       );
-
       const results = await Promise.all(fetchPromises);
-      const mergedProducts = results.flat();
-      setFilteredProducts(mergedProducts);
+      setFilteredProducts(results.flat());
     } catch (error) {
       console.error("Error fetching category products:", error);
     }
@@ -112,119 +90,100 @@ const CategoryPage = () => {
 
   return (
     <div className="container mx-auto p-4 md:p-8 flex flex-col md:flex-row gap-8">
-      {/* Sidebar for filtering */}
-      <div className="w-full md:w-64 p-4 bg-gray-100 border rounded-md shadow-md overflow-y-auto h-screen">
+      {/* Sidebar */}
+      <aside className="w-full md:w-64 p-4 bg-gray-100 border rounded-md shadow-md h-auto md:h-screen overflow-auto">
         <h3 className="text-lg font-semibold mb-4">Sort by</h3>
-        <div className="mb-6">
-          <label className="block text-sm mb-2">
-            <input
-              type="radio"
-              name="sort"
-              value="lowToHigh"
-              checked={sortOrder === "lowToHigh"}
-              onChange={() => handleSortChange("lowToHigh")}
-              className="mr-2"
-            />
-            Price - Low to High
-          </label>
-          <label className="block text-sm mb-2">
-            <input
-              type="radio"
-              name="sort"
-              value="highToLow"
-              checked={sortOrder === "highToLow"}
-              onChange={() => handleSortChange("highToLow")}
-              className="mr-2"
-            />
-            Price - High to Low
-          </label>
+        <div className="mb-6 space-y-2">
+          {["lowToHigh", "highToLow"].map((order) => (
+            <label key={order} className="block text-sm">
+              <input
+                type="radio"
+                name="sort"
+                value={order}
+                checked={sortOrder === order}
+                onChange={() => handleSortChange(order)}
+                className="mr-2"
+              />
+              {order === "lowToHigh"
+                ? "Price - Low to High"
+                : "Price - High to Low"}
+            </label>
+          ))}
         </div>
-        <h3 className="text-lg font-semibold mb-4">Category</h3>
-        <div className="mb-6">
-          {category &&
-            category.map((category) => (
-              <label key={category.Id} className="block text-sm mb-2">
-                <input
-                  type="checkbox"
-                  name="category"
-                  value={category.name}
-                  checked={selectedCategories.includes(category.Id)}
-                  onChange={(e) =>
-                    handleCategoryChange(category.Id, e.target.checked)
-                  }
-                  className="mr-2"
-                />
-                {category.name}
-              </label>
-            ))}
+
+        <h3 className="text-lg font-semibold mb-4">Categories</h3>
+        <div className="space-y-2">
+          {categories.map(({ Id, name }) => (
+            <label key={Id} className="block text-sm">
+              <input
+                type="checkbox"
+                name="category"
+                value={name}
+                checked={selectedCategories.includes(Id)}
+                onChange={(e) => handleCategoryChange(Id, e.target.checked)}
+                className="mr-2"
+              />
+              {name}
+            </label>
+          ))}
         </div>
-      </div>
-      <div className="flex-1 p-6">
+      </aside>
+
+      {/* Product List */}
+      <main className="flex-1 p-6">
         <h3 className="text-xl font-semibold mb-4 text-center">
           Search Results: {filteredProducts.length}{" "}
           {filteredProducts.length === 1 ? "product" : "products"}
         </h3>
-        {filteredProducts.length === 0 ? (
-          <p className="text-center text-gray-600">
-            No products found within the selected price range.
-          </p>
+
+        {loading ? (
+          <p className="text-center text-gray-600">Loading products...</p>
+        ) : filteredProducts.length === 0 ? (
+          <p className="text-center text-gray-600">No products found.</p>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
             {filteredProducts.map((product, index) => (
               <div
                 key={index}
-                className="relative border flex flex-col justify-between h-full bg-white rounded-lg shadow-lg hover:shadow-xl transition-shadow duration-300 group"
+                className="border bg-white rounded-lg shadow-md hover:shadow-lg transition-shadow duration-300 overflow-hidden"
               >
                 {product.offer && (
-                  <div className="absolute top-0 left-0 z-40 w-16 h-16">
-                    <div className="absolute transform -rotate-45 bg-[#192a56] text-center text-white font-semibold py-1 left-[-55px] top-[20px] w-[170px] text-xs">
-                      {product.offer}% OFF
-                    </div>
+                  <div className="absolute top-0 left-0 bg-blue-600 text-white text-xs font-bold py-1 px-2 rounded-br-md">
+                    {product.offer}% OFF
                   </div>
                 )}
 
-                <div className="z-30">
-                  <div className="bg-slate-200 h-[300px] p-4 flex justify-center items-center">
-                    {console.log(product.image.map((image) => image))}
-                    <Image
-                      src={
-                        product.image[0]?.startsWith("http")
-                          ? product.image[0]
-                          : `https://farseit.com/Upload/ProductImage/${product.image[0]
-                              .split("/")
-                              .pop()}`
-                      }
-                      width={300}
-                      height={300}
-                      className=" w-auto h-[290px]  group-hover:scale-105 transition-all duration-300"
-                      alt={`product-image-${index}`}
-                      loading={index === 0 ? "eager" : "lazy"}
-                      priority={index === 0}
-                    />
-                  </div>
+                <div className="p-4 flex justify-center items-center bg-gray-100">
+                  <Image
+                    src={
+                      product.image[0]?.startsWith("http")
+                        ? product.image[0]
+                        : `https://farseit.com/Upload/ProductImage/${product.image[0]
+                            .split("/")
+                            .pop()}`
+                    }
+                    width={250}
+                    height={250}
+                    className="w-auto h-48 object-cover group-hover:scale-105 transition-transform duration-300"
+                    alt={product.name}
+                    loading={index === 0 ? "eager" : "lazy"}
+                    priority={index === 0}
+                  />
+                </div>
 
-                  <div className="p-4 space-y-2">
-                    <h2 className="font-medium text-base md:text-lg text-ellipsis line-clamp-1 text-black">
-                      {product.name}{" "}
-                    </h2>
-                    <div className="flex gap-2">
-                      <p className="text-[#192A56] text-sm font-bold">
-                        {product.price} TK
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex justify-center items-center p-4 gap-4 mt-2">
-                    <button className="text-sm bg-[#192A56] hover:bg-[#16a085] text-white px-3 py-0.5 rounded-sm cursor-pointer">
-                      Add to Cart
-                    </button>
-                  </div>
+                <div className="p-4 text-center">
+                  <h2 className="font-medium text-lg truncate">
+                    {product.name}
+                  </h2>
+                  <p className="text-blue-700 text-sm font-bold">
+                    {product.price} TK
+                  </p>
                 </div>
               </div>
             ))}
           </div>
         )}
-      </div>
+      </main>
     </div>
   );
 };
